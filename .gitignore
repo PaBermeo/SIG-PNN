@@ -1,5 +1,8 @@
 *
 
+*Mapas
+*.zip
+
 # Permitir la carpeta Scripts
 !Scripts/
 !Scripts/**
