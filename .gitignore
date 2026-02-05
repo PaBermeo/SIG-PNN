@@ -4,7 +4,7 @@
 .xlsx
 .tiff
 .Mapas/
-.Otros_clima/
+*.Otros_clima/
 .Raster/
 .Vectorial
 .zip
