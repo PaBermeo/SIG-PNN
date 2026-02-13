@@ -6,3 +6,4 @@
 
 # Permitir este archivo
 !.gitignore
+.Rproj.user
