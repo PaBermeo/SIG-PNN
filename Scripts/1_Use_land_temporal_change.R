@@ -3,10 +3,13 @@
 
 #Authors: Bermeo, Paula & Rico, Mauricio
 
-#Load libraries
-pacman::p_load(dplyr, cowplot, geobr, ggplot2, ggpattern, ggspatial, gridGraphics, sf, sp, tmap, terra, raster, readr, rnaturalearth, viridis)
 
-# Land use raster loads
+# Load libraries ----------------------------------------------------------
+pacman::p_load(dplyr, cowplot, geobr, ggplot2, ggpattern, ggspatial, gridGraphics, sf, sp, tmap, terra, raster, readr, rnaturalearth, stars,viridis)
+
+
+# # Land use raster loads -------------------------------------------------
+
 
 LU_86 <- rast("Raster/Mapbiomas/INTEGRACION-COLOMBIA-COL3-1986.tif")
 crs(LU_86) <- "epsg:4326"
@@ -29,6 +32,10 @@ F1_86 <- mask(crop(LU_86, F1), F1)
 F1_24 <- mask(crop(LU_24, F1), F1)
 #plot(F1_86)
 #res(F1_86)
+
+
+
+# Map land use ------------------------------------------------------------
 
 # change to tmap mode
 tmap::tmap_mode(mode = "plot")
@@ -72,20 +79,51 @@ bbox_exp <- expand_bbox(F1_86, frac = 0.3)
   
   ggsave(plot=merge_plot, "La_Floresta.png", width = 14, height = 5.3, units = "in", dpi= 600)
    
-  
-#Generar shapefile de pérdida/ganancia
+
+
+# Generar shapefile de pérdida/ganancia -----------------------------------
   
  Bosq_84 <- F1_86 %in% c(3, 13) 
  Bosq_24 <-  F1_24 %in% c(3, 13)
 
- Loss <-  as.integer(Bosq_84 & !Bosq_24)
- Loss1 <- as.polygons(Loss, dissolve = TRUE) 
- Loss2 <- Loss1[Loss1$layer == 1, ]
- 
- writeVector(Loss2, "Perdida_bosque_Finca.shp",  overwrite = TRUE)
- 
+ Loss <-  Bosq_84 & !Bosq_24
  Gain <-  !Bosq_84 & Bosq_24
- Change <- Bosq_84 != Bosq_24
+ 
+ #Ploteando pérdidas y ganancias
+ par(mfrow = c(2, 2), cex = 0.5, mar = rep(0.6, 4))
+ plot(Bosq_84); legend("topleft", legend = "1984", border = "white")
+ plot(Bosq_24); legend("topleft", legend = "2024", bty = "n")
+ plot(Loss); legend("topleft", legend = "Area_loss", bty = "n")
+ plot(Gain); legend("topleft", legend = "Area_gain", bty = "n")
+ dev.off()
  
  
+ Loss1 <- st_as_stars(Loss, proxy=T) 
+ L <- st_as_sf(Loss1, merge = T)
+ LossF <- L[L$classification_1986 == 1, ]
+ 
+ st_write(LossF, "Vectorial/Gananc_perdd_finca/PerdidaBosq_Fincaname.shp",  overwrite = TRUE)
+
+#Gnancia entre el año   
+ Gain1 <- st_as_stars(Gain, proxy=T) 
+ G <- st_as_sf(Gain1, merge = T)
+ GainF <- G[G$classification_1986 == 1, ]
+ 
+ st_write(GainF, "Vectorial/Gananc_perdd_finca/GanaBosq_Fincaname.shp",  overwrite = TRUE)
+ 
+#Cálculo de áreas de pérdida y ganancia por finca
+ 
+#Recortar loss/gain de acuerdo al shapefile de cada finca
+
+ Cambio_m <- project(Loss, "EPSG:3116")
+ F1_m <- project(F1, "EPSG:3116")
+ 
+# Aumentar resolución
+Cambio_fino <- disagg(Cambio_m, fact=40)
+ 
+# Ahora aplicar mask
+Cambio_rec <- mask(crop(Cambio_fino, F1_m), F1_m)
+plot(Cambio_rec)
+
+#cálculo de areas de acuerdo con script PMP ENM 
 
