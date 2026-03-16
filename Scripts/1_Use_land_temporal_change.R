@@ -4,11 +4,16 @@
 #Authors: Bermeo, Paula & Rico, Mauricio
 
 # Load libraries ----------------------------------------------------------
-pacman::p_load(dplyr, cowplot, geobr, ggplot2, ggpattern, ggspatial, gridGraphics, sf, sp, tmap, terra, raster, readr, rnaturalearth, stars,viridis)
+pacman::p_load(dplyr, cowplot, geobr, ggplot2, ggpattern, ggspatial, gridGraphics, sf, sp, tmap, terra, raster, readr, rnaturalearth, stars,viridis, writexl)
 
+Fincas_marzo <- c( "GRANJA AGROECOLOGICA BRISAS AMOYA")
+  
+Finca mar3 <-   Finca c("EL MIRADOR")
+
+Fincas_mar2 <- c("EL TRIUNFO", "LAS PALMAS", "ALTOS DEL JARDIN", "EL RECREO", "LAS BRISAS", "LAS AURAS", "LA LAGUNA", "LOS OLIVOS", "LA FLORESTA")
 
 # Land use raster loads -------------------------------------------------
-
+# 
 # LU_86 <- rast("Raster/Mapbiomas/INTEGRACION-COLOMBIA-COL3-1986.tif")
 # crs(LU_86) <- "epsg:4326"
 # 
@@ -29,13 +34,13 @@ pacman::p_load(dplyr, cowplot, geobr, ggplot2, ggpattern, ggspatial, gridGraphic
 # #plot(F1_86)
 # #res(F1_86)
 # 
-# LU_86p <- project(LU_86Ch, "EPSG:3116", method="near") 
+# LU_86p <- project(LU_86Ch, "EPSG:4326", method="near")
 # LU_86f <- disagg(LU_86p, fact= 40)
 # LU_86p
 # 
 # raster::writeRaster(LU_86f, "Raster/Land_use_Chaparral_1986.tiff", overwrite=TRUE)
 # 
-# LU_24p <- project(LU_24Ch, "EPSG:3116", method="near") 
+# LU_24p <- project(LU_24Ch, "EPSG:4326", method="near")
 # LU_24f <- disagg(LU_24p, fact= 40)
 # LU_24f
 # 
@@ -45,10 +50,10 @@ pacman::p_load(dplyr, cowplot, geobr, ggplot2, ggpattern, ggspatial, gridGraphic
 # Loop mapas 1984 2024 por finca ------------------------------------------
 
 LU_86 <- rast("Raster/Land_use_Chaparral_1986.tiff")
-crs(LU_86) <- "epsg:4326"
+crs(LU_86) <- "EPSG:4326"
 
-LU_24 <- rast("Raster/Land_use_Chaparral_1986.tiff")
-crs(LU_24) <- "epsg:4326"
+LU_24 <- rast("Raster/Land_use_Chaparral_2024.tiff")
+crs(LU_24) <- "EPSG:4326"
 
 #Load shapefile
 Fincas <-  "Vectorial/PREDIOS_KFW_SSC_Ganaderia/Predios_KFW_SSC_Ganaderia_POL.shp"
@@ -56,22 +61,27 @@ Fincas1 = vect(Fincas)
 crs(Fincas1) <- "EPSG:9377"
 
 #Project rasters
-Fincas1 <- project(Fincas1, crs(LU_86))
+#Fincas1 <- project(Fincas1, crs(LU_86))
 
 
-# Map land use ------------------------------------------------------------
+#Map land use -
 
 # change to tmap mode
 tmap::tmap_mode(mode = "plot")
 tmap_options(check.and.fix = TRUE)
 
-Fincas_marzo <- c("LA FLORESTA", "LAS AURAS")
-
 # Loop fincas
 
-F1 <- Fincas1[Fincas1$DIRECCION == Fincas_marzo, ] 
-F1_m <- project(F1, "EPSG:3116")
-F1_sf <- sf::st_as_sf(F1)
+for (finca in 1: length(Fincas_marzo))
+
+{ 
+  finca <- 1
+  
+  F1 <- Fincas1[Fincas1$DIRECCION == Fincas_marzo[finca], ] 
+  plot(F1)
+  
+  F1_m <- project(F1, "EPSG:4326")
+  F1sf <- sf::st_as_sf(F1_m, crs= st_crs(4326))
 
 # expand_bbox <- function(x, frac = 0.2){
 #   e <- terra::ext(x)
@@ -84,64 +94,101 @@ F1_sf <- sf::st_as_sf(F1)
 # 
 # bbox_exp <- expand_bbox(F1_86, frac = 0.3)
 
-F1_86p <- project(LU_86, "EPSG:3116", method="near") #sí el método es bilinear, genera un promedio o interpolación
-F1_86p <- project(F1, "EPSG:3116")
-
 # Ahora aplicar mask
-F1_86b <- mask(crop(F1_86p, F1_m), F1_m)
+F1_86b <- mask(crop(LU_86, F1_m), F1_m)
+plot(F1_86b)
 
-Leg <- c("3" = "Bosque", "13"= "NA", "21"= "Pastos") ##Tener en cuenta 13 se dejará como bosque
+Leg <- c("3" = "Bosque", "13"= "", "21"= "Pastos") ##Tener en cuenta 13 se dejará como bosque
 
 palet <- c("3" = "#1F8D49", "13"= "#1F8D49",  "21" = "#FFEFC3")
 
-    tm_shape(F1_86b) + #, bbox=bbox_exp) +
-    tm_raster(style = "cat", palette = palet, labels = Leg, title = 'Uso de suelo') +
-      tm_shape(F1_sf) +
-      tm_borders(col = 'black', lwd = 1, lty=2) +
-      tm_compass(position = c(0.85, 0.4), size= 1.5) + 
-      tm_scale_bar(text.size = 0.6, position = c(0.5, 0), width = 0.25) + #scale bar
-      #tm_graticules(lines = F, labels.rot = c(0, 90), labels.size = 0.55) +
-      tm_layout(main.title= "1986") +
+    tm_shape(F1_86b) + #, bbox= c(-75, -75.56, 3.74, 3.758)) +
+    tm_raster(style = "cat", palette = palet, labels = Leg, title = ' ') +
+    tm_shape(F1sf) +
+    tm_borders(col = 'black', lwd = 1, lty=2) +
+    tm_compass(position = c(0.9, 0.9), size= 2) + 
+      tm_scale_bar(text.size = 0.5, position = c(0.1, 0), width = 0.38) + 
+     # tm_graticules(lines = F, labels.rot = c(0, 90), labels.size = 0.55) +
+    tm_layout(main.title= "Año 1986",
+                #legend.position = c(0.7, 0.8),
+               legend.outside = T
+                ) +
     tm_add_legend(type = "line", 
                   labels = "Perímetro finca", 
                   col = "black", 
                   lwd = 1,
                   lty=2,
-                  size = 0.5)
+                  size = 0.9)
+    
     Map_1986 <- grid.grab()
     
     
 #Mapeando mapa 2024 
-F1_24p <- project(F1_24, "EPSG:3116", method="near") #sí el método es bilinear, genera un promedio o interpolación
-    F1_m <- project(F1, "EPSG:3116")
+
+F1_24b <- mask(crop(LU_24, F1_m), F1_m)
+plot(F1_24b)  
     
-    F1_24a <- disagg(F1_24p, fact= 40)
-    
-    # Ahora aplicar mask
-    F1_24b <- mask(crop(F1_24a, F1_m), F1_m)    
-    
-    tm_shape(F1_24b) + #, bbox=bbox_exp) +
-      tm_raster(style = "cat", palette = palet, labels = Leg, title = 'Uso de suelo', showNA = F) +
-      tm_shape(F1_sf) +
-      tm_borders(col = 'black', lwd = 1, lty=2) +
-      #tm_compass(position = c(0.05, 0.65), size= 1.5) + 
-      #tm_scale_bar(text.size = 0.6, position = c(0.5, 0), width = 0.15) + #scale bar
-      tm_layout(main.title= "2024")
+      tm_shape(F1_24b) +
+        tm_raster(style = "cat", palette = palet, labels = Leg, title = ' ') +
+        tm_shape(F1sf) +
+        tm_borders(col = 'black', lwd = 1, lty=2) +
+        tm_compass(position = c(0.9, 0.9), size= 2) + 
+        tm_scale_bar(text.size = 0.5, position = c(0.1, 0), width = 0.38) + #scale bar
+        #tm_graticules(lines = F, labels.rot = c(0, 90), labels.size = 0.55) +
+        tm_layout(main.title= "Año 2024",
+                  #legend.position = c(0.7, 0.75
+                  legend.outside = T
+        ) +
+        tm_add_legend(type = "line", 
+                      labels = "Perímetro finca", 
+                      col = "black", 
+                      lwd = 1,
+                      lty=2,
+                      size = 1.2)
+  
   Map_2024 <- grid.grab()
   
   merge_plot <-  plot_grid(Map_1986, Map_2024, align = "h")
   
-  ggsave(plot=merge_plot, "Mapas_fase_I/LA FLORESTA.png", width = 9, height = 5.3, units = "in", dpi= 600)
-   
-
+  ggsave(plot=merge_plot, paste0("Entrega_fase_I/Mapas_perdd_gananc/", Fincas_marzo[finca], ".png"), width = 23, height = 15, units = "cm", dpi= 600)
+  
+}
 
 # Generar shapefile de pérdida/ganancia -----------------------------------
-  
- Bosq_84 <- F1_86 %in% c(3, 13) 
- Bosq_24 <-  F1_24 %in% c(3, 13)
 
- Loss <-  Bosq_84 & !Bosq_24
- Gain <-  !Bosq_84 & Bosq_24
+LU_86 <- rast("Raster/Land_use_Chaparral_1986.tiff")
+crs(LU_86) <- "EPSG:4326"
+
+LU_24 <- rast("Raster/Land_use_Chaparral_2024.tiff")
+crs(LU_24) <- "EPSG:4326"
+
+#Load shapefile
+Fincas <-  "Vectorial/PREDIOS_KFW_SSC_Ganaderia/Predios_KFW_SSC_Ganaderia_POL.shp"
+Fincas1 = vect(Fincas)
+crs(Fincas1) <- "EPSG:9377"
+  
+
+for (finca in 1: length(Fincas_marzo))
+  
+{
+  F1 <- Fincas1[Fincas1$DIRECCION == Fincas_marzo[finca], ] 
+  
+  if(nrow(F1) == 0){
+    cat("No encontrada:", Fincas_marzo[finca], "\n")
+    next
+  }
+  
+  F1_m <- project(F1, "EPSG:4326")
+  F1sf <- sf::st_as_sf(F1_m, crs= st_crs(4326))
+
+  F1_86b <- mask(crop(LU_86, F1_m), F1_m)
+  F1_24b <- mask(crop(LU_24, F1_m), F1_m)
+ 
+  Bosq_84 <- F1_86b %in% c(3, 13) 
+  Bosq_24 <-  F1_24b %in% c(3, 13)
+
+  Loss <-  Bosq_84 & !Bosq_24
+  Gain <-  !Bosq_84 & Bosq_24
  
  #Ploteando pérdidas y ganancias
  par(mfrow = c(2, 2), cex = 0.5, mar = rep(0.6, 4))
@@ -156,132 +203,89 @@ F1_24p <- project(F1_24, "EPSG:3116", method="near") #sí el método es bilinear
  L <- st_as_sf(Loss1, merge = T)
  LossF <- L[L$classification_1986 == 1, ]
  
- st_write(LossF, "Vectorial/Perdida_bosque/LA FLORESTA.shp",  overwrite = TRUE)
+ st_write(LossF, paste0("Vectorial/Perdida_bosque/", Fincas_marzo[finca], ".shp"),  overwrite = T)
 
 #Ganancia entre 1985 a 2024   
  Gain1 <- st_as_stars(Gain, proxy=T) 
  G <- st_as_sf(Gain1, merge = T)
  GainF <- G[G$classification_1986 == 1, ]
  
- st_write(GainF, "Vectorial/Ganancia_bosque/LA FLORESTA.shp",  overwrite = TRUE)
+ st_write(GainF, paste0("Vectorial/Ganancia_bosque/", Fincas_marzo[finca], ".shp"),  overwrite = T)
  
-#Cálculo de áreas de pérdida y ganancia por finca
- 
+
+}
+
+
+# #Cálculo de áreas de pérdida y ganancia por finca -----------------------
+
 #Recortar loss/gain de acuerdo al shapefile de cada finca
 
- Cambio_m <- project(Loss, "EPSG:3116", method="near") #sí el método es bilinear, genera un promedio o interpolación
- F1_m <- project(F1, "EPSG:3116")
-
- F1_m_sf <- sf::st_as_sf(F1_m)
+ LU_86 <- rast("Raster/Land_use_Chaparral_1986.tiff")
+ crs(LU_86) <- "EPSG:4326"
+ #LU_86 <- project(LU_86, "EPSG:3116")
  
- area_finca <- sf::st_area(F1_m_sf) / 10000
- area_finca
+ LU_24 <- rast("Raster/Land_use_Chaparral_2024.tiff")
+ crs(LU_24) <- "EPSG:4326"
+ #LU_24 <- project(LU_24, "EPSG:3116")
+
+#Load shapefile
+ Fincas <-  "Vectorial/PREDIOS_KFW_SSC_Ganaderia/Predios_KFW_SSC_Ganaderia_POL.shp"
+ Fincas1 = vect(Fincas)
+ crs(Fincas1) <- "EPSG:9377"
+ Fincas1 <- project(Fincas1, "EPSG:4326")
+
+ for (finca in 1: length(Fincas_marzo))
+   
+ { 
  
-# Aumentar resolución
-Cambio_fino <- disagg(Cambio_m, fact= 40)
+ F1 <- Fincas1[Fincas1$DIRECCION == Fincas_marzo[finca], ]  #Fincas_marzo[finca]
+
+ F1sf <- sf::st_as_sf(F1) #, crs= st_crs(4326))
+
+ F1_86b <- mask(crop(LU_86, F1), F1)
+ F1_24b <- mask(crop(LU_24, F1), F1)
+
+ Bosq_84 <- F1_86b %in% c(3, 13) 
+ Bosq_24 <-  F1_24b %in% c(3, 13)
+
+ Loss <-  Bosq_84 & !Bosq_24
+ Gain <-  !Bosq_84 & Bosq_24 
  
-# Ahora aplicar mask
-Cambio_rec <- mask(crop(Cambio_fino, F1_m), F1_m)
-#plot(Cambio_rec)
-
-LossFin <- st_as_stars(Cambio_rec, proxy=T) 
-L <- st_as_sf(LossFin, merge = T)
-LossFino <- L[L$classification_1986 == 1, ]
-
-st_write(LossFino, "Vectorial/Perdida_bosque/LA FLORESTA_fino.shp",  overwrite = TRUE)
-
+ area_finca <- round(as.numeric(sf::st_area(F1_sf) / 10000), 2)
+ #area_finca
+ 
  #cálculo de areas de acuerdo con script PMP ENM 
 
-area_r <- cellSize(Cambio_rec, unit = "ha")
+ area_p <- cellSize(Loss, unit = "ha")
 
-area_loss <- global(area_r * (Cambio_rec==1), sum, na.rm = TRUE)
+ area_per <- round(global(area_p * (Loss==1), sum, na.rm = F), 2)[1,1] 
 
-area_loss #Área perdida en ha entre el año 2085 a 2024
-
-
+ #area_per #Área perdida en ha entre el año 1985 a 2024
 
 
 #Cálculo de porcentaje de área ganada
-Cambio_g <- project(Gain, "EPSG:3116", method="near")
-
-Cam_g <- disagg(Cambio_g, fact= 40)
-
-# Ahora aplicar mask
-Cam_gr <- mask(crop(Cam_g, F1_m), F1_m)
-
-GainFin <- st_as_stars(Cam_gr, proxy=T) 
-G <- st_as_sf(GainFin, merge = T)
-GainFino <- G[G$classification_1986 == 1, ]
-
-st_write(GainFino, "Vectorial/Ganancia_bosque/LA FLORESTA_fino.shp",  overwrite = TRUE)
 
 #cálculo de areas de acuerdo con script PMP ENM 
 
-area_g <- cellSize(Cam_gr, unit = "ha")
+area_g <- cellSize(Gain, unit = "ha")
 
-area_gain <- global(area_g * (Cam_gr==1), sum, na.rm = TRUE)
+area_gain <- round(global(area_g * (Gain==1), sum, na.rm = TRUE), 2)[1,1]
 
-area_gain #Área ganada de bosque en ha entre el año 1985 a 2024
+#area_gain #Área ganada de bosque en ha entre el año 1985 a 2024
 
+# porcentaje
+perc_loss <- (area_per / area_finca) * 100
+perc_gain <- (area_gain / area_finca) * 100
 
-
-
-# Resultados tabla automatizado -------------------------------------------
-
-# reproyectar fincas a CRS del raster
-Fincas_proj <- project(Fincas1, crs(LU_86))
-
-# tabla de resultados
-resultados <- data.frame(
-  finca = character(),
-  area_finca_ha = numeric(),
-  area_loss_ha = numeric(),
-  perc_loss = numeric()
+tabla_r <- data.frame(
+  Categoria = c("Area finca", "Perdida de Bosque", "Ganancia de Bosque"),
+  Hectareas = c(area_finca, area_per, area_gain),
+  Porcentaje = c("100%", 
+                 paste0(round(perc_loss,0), "%"),
+                 paste0(round(perc_gain,0), "%"))
 )
 
-for(i in 1:nrow(Fincas_proj)){
-
-  i <- 1
-  finca_i <- Fincas_proj[i]
-  
-  # nombre de la finca
-  nombre <- finca_i$DIRECCION
-  
-  # área finca
-  finca_m <- project(finca_i, "EPSG:3116")
-  area_finca <- as.numeric(st_area(st_as_sf(finca_m)) / 10000)
-  
-  # recorte raster
-  r86 <- mask(crop(LU_86, finca_i), finca_i)
-  r24 <- mask(crop(LU_24, finca_i), finca_i)
-  
-  # bosque
-  bosq86 <- r86 %in% c(3,13)
-  bosq24 <- r24 %in% c(3,13)
-  
-  # pérdida
-  loss <- bosq86 & !bosq24
-  
-  # reproyección métrica
-  loss_m <- project(loss, "EPSG:3116", method="near")
-  
-  # área por pixel
-  area_pix <- cellSize(loss_m, unit="ha")
-  
-  # área pérdida
-  area_loss <- global(area_pix * (loss_m==1), sum, na.rm=TRUE)[1,1]
-  
-  # porcentaje
-  perc_loss <- (area_loss / area_finca) * 100
-  
-  # guardar resultados
-  resultados <- rbind(resultados, data.frame(
-    finca = nombre,
-    area_finca_ha = area_finca,
-    area_loss_ha = area_loss,
-    perc_loss = perc_loss
-  ))
-  
+tabla_r
+ 
+write.csv(tabla_r, paste0("Entrega_fase_I/Tabla_perdidas_ganancias/", Fincas_marzo[finca],".csv")) 
 }
-
-resultados
